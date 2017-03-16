@@ -17,8 +17,8 @@ var ReactS3Uploader = React.createClass({
         signingUrlMethod: React.PropTypes.string,
         signingUrlHeaders: React.PropTypes.object,
         signingUrlQueryParams: React.PropTypes.oneOfType([
-          React.PropTypes.object,
-          React.PropTypes.func
+            React.PropTypes.object,
+            React.PropTypes.func
         ]),
         signingUrlWithCredentials: React.PropTypes.bool,
         uploadRequestHeaders: React.PropTypes.object,
@@ -83,13 +83,16 @@ var ReactS3Uploader = React.createClass({
     },
 
     getInputProps: function() {
-        var temporaryProps = objectAssign({}, this.props, {type: 'file', onChange: this.uploadFile});
+        var temporaryProps = objectAssign({}, this.props, {
+            type: 'file',
+            onChange: this.uploadFile
+        });
         var inputProps = {};
 
         var invalidProps = Object.keys(ReactS3Uploader.propTypes);
 
-        for(var key in temporaryProps) {
-            if(temporaryProps.hasOwnProperty(key) && invalidProps.indexOf(key) === -1) {
+        for (var key in temporaryProps) {
+            if (temporaryProps.hasOwnProperty(key) && invalidProps.indexOf(key) === -1) {
                 inputProps[key] = temporaryProps[key];
             }
         }
@@ -100,17 +103,18 @@ var ReactS3Uploader = React.createClass({
 });
 
 // http://stackoverflow.com/a/24608023/194065
-function clearInputFile(f){
-    if(f.value){
-        try{
+function clearInputFile(f) {
+    if (f.value) {
+        try {
             f.value = ''; //for IE11, latest Chrome/Firefox/Opera...
-        }catch(err){ }
-        if(f.value){ //for IE5 ~ IE10
+        } catch (err) {}
+        if (f.value) { //for IE5 ~ IE10
             var form = document.createElement('form'),
-                parentNode = f.parentNode, ref = f.nextSibling;
+                parentNode = f.parentNode,
+                ref = f.nextSibling;
             form.appendChild(f);
             form.reset();
-            parentNode.insertBefore(f,ref);
+            parentNode.insertBefore(f, ref);
         }
     }
 }

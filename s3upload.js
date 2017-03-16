@@ -3,11 +3,22 @@
  * https://github.com/flyingsparx/NodeDirectUploader
  */
 
+function buildFormData(data, file, fileName) {
+    var res = new FormData();
+    for (var k in data) {
+        res.append(k, data[k]);
+    }
+    res.append('file', file, fileName);
+
+    return res;
+}
+
 S3Upload.prototype.server = '';
 S3Upload.prototype.signingUrl = '/sign-s3';
 S3Upload.prototype.signingUrlMethod = 'GET';
 S3Upload.prototype.fileElement = null;
 S3Upload.prototype.files = null;
+
 
 S3Upload.prototype.onFinishS3Put = function(signResult, file) {
     return console.log('base.onFinishS3Put()', signResult.publicUrl);
@@ -45,12 +56,12 @@ function S3Upload(options) {
 
 S3Upload.prototype.handleFileSelect = function(files) {
     var result = [];
-    for (var i=0; i < files.length; i++) {
+    for (var i = 0; i < files.length; i++) {
         var file = files[i];
-        this.preprocess(file, function(processedFile){
-          this.onProgress(0, 'Waiting', processedFile);
-          result.push(this.uploadFile(processedFile));
-          return result;
+        this.preprocess(file, function(processedFile) {
+            this.onProgress(0, 'Waiting', processedFile);
+            result.push(this.uploadFile(processedFile));
+            return result;
         }.bind(this));
     }
 };
@@ -64,12 +75,10 @@ S3Upload.prototype.createCORSRequest = function(method, url, opts) {
             xhr.withCredentials = opts.withCredentials;
         }
         xhr.open(method, url, true);
-    }
-    else if (typeof XDomainRequest !== "undefined") {
+    } else if (typeof XDomainRequest !== "undefined") {
         xhr = new XDomainRequest();
         xhr.open(method, url);
-    }
-    else {
+    } else {
         xhr = null;
     }
     return xhr;
@@ -86,7 +95,9 @@ S3Upload.prototype.executeOnSignedUrl = function(file, callback) {
         });
     }
     var xhr = this.createCORSRequest(this.signingUrlMethod,
-        this.server + this.signingUrl + queryString, { withCredentials: this.signingUrlWithCredentials });
+        this.server + this.signingUrl + queryString, {
+            withCredentials: this.signingUrlWithCredentials
+        });
     if (this.signingUrlHeaders) {
         var signingUrlHeaders = this.signingUrlHeaders;
         Object.keys(signingUrlHeaders).forEach(function(key) {
@@ -113,12 +124,12 @@ S3Upload.prototype.executeOnSignedUrl = function(file, callback) {
 };
 
 S3Upload.prototype.uploadToS3 = function(file, signResult) {
-    var xhr = this.createCORSRequest('PUT', signResult.signedUrl);
+    var xhr = this.createCORSRequest(signResult.method || 'PUT', signResult.signedUrl);
     if (!xhr) {
         this.onError('CORS not supported', file);
     } else {
         xhr.onload = function() {
-            if (xhr.status === 200) {
+            if (xhr.status === 200 || xhr.status === 201) {
                 this.onProgress(100, 'Upload completed', file);
                 return this.onFinishS3Put(signResult, file);
             } else {
@@ -136,7 +147,9 @@ S3Upload.prototype.uploadToS3 = function(file, signResult) {
             }
         }.bind(this);
     }
-    xhr.setRequestHeader('Content-Type', file.type);
+    if (signResult.method !== 'post') {
+        xhr.setRequestHeader('Content-Type', file.type);
+    }
     if (this.contentDisposition) {
         var disposition = this.contentDisposition;
         if (disposition === 'auto') {
@@ -157,22 +170,25 @@ S3Upload.prototype.uploadToS3 = function(file, signResult) {
             xhr.setRequestHeader(key, val);
         });
     } else {
-        xhr.setRequestHeader('x-amz-acl', 'public-read');
+        xhr.setRequestHeader('x-amz-acl', 'private');
     }
     this.httprequest = xhr;
-    return xhr.send(file);
+    if (signResult.method == 'post' && signResult.params) {
+        return xhr.send(buildFormData(signResult.params, file, 'file'));
+    } else {
+        return xhr.send(file);
+    }
 };
 
 S3Upload.prototype.uploadFile = function(file) {
     var uploadToS3Callback = this.uploadToS3.bind(this, file);
 
-    if(this.getSignedUrl) return this.getSignedUrl(file, uploadToS3Callback);
+    if (this.getSignedUrl) return this.getSignedUrl(file, uploadToS3Callback);
     return this.executeOnSignedUrl(file, uploadToS3Callback);
 };
 
 S3Upload.prototype.abortUpload = function() {
     this.httprequest && this.httprequest.abort();
 };
-
 
 module.exports = S3Upload;
